@@ -160,6 +160,24 @@ export default function PracticePage() {
   const [hasUsedFreeAttempt, setHasUsedFreeAttempt] = useState(false)
   const [showSignInModal, setShowSignInModal] = useState(false)
 
+  // Function to generate a new random task
+  const generateNewTask = () => {
+    console.log('generateNewTask called')
+    const taskType = Math.random() < 0.5 ? 'email' : 'survey'
+    const prompts = taskType === 'email' ? EMAIL_PROMPTS : SURVEY_PROMPTS
+    const randomPrompt = prompts[Math.floor(Math.random() * prompts.length)]
+    
+    const newTask = {
+      type: taskType as 'email' | 'survey',
+      prompt: randomPrompt,
+      timeLimit: taskType === 'email' ? 27 : 26,
+      wordTarget: { min: 150, max: 200 }
+    }
+    
+    console.log('Generated new task:', newTask)
+    return newTask
+  }
+
   // Check if user has used their free attempt
   useEffect(() => {
     const freeAttemptUsed = localStorage.getItem('celpip-free-attempt-used')
@@ -170,17 +188,11 @@ export default function PracticePage() {
 
   // Randomly select a task on component mount
   useEffect(() => {
+    console.log('Task generation useEffect triggered, selectedTask:', selectedTask)
     if (!selectedTask) {
-      const taskType = Math.random() < 0.5 ? 'email' : 'survey'
-      const prompts = taskType === 'email' ? EMAIL_PROMPTS : SURVEY_PROMPTS
-      const randomPrompt = prompts[Math.floor(Math.random() * prompts.length)]
-      
-      setSelectedTask({
-        type: taskType,
-        prompt: randomPrompt,
-        timeLimit: taskType === 'email' ? 27 : 26,
-        wordTarget: { min: 150, max: 200 }
-      })
+      console.log('Generating new task...')
+      const newTask = generateNewTask()
+      setSelectedTask(newTask)
     }
   }, [selectedTask])
 
@@ -393,12 +405,20 @@ export default function PracticePage() {
               <div className="flex flex-col sm:flex-row gap-4">
                 <button
                   onClick={() => {
+                    console.log('Try Another Task clicked')
+                    console.log('Session:', session)
+                    console.log('Has used free attempt:', hasUsedFreeAttempt)
+                    
                     // Check if user is signed in or hasn't used free attempt
                     if (session || !hasUsedFreeAttempt) {
+                      console.log('Resetting state for new task')
                       setShowResults(false)
                       setResults(null)
-                      setSelectedTask(null) // Reset to get a new random task
+                      // Generate a new task immediately instead of setting to null
+                      const newTask = generateNewTask()
+                      setSelectedTask(newTask)
                     } else {
+                      console.log('Showing sign-in modal')
                       setShowSignInModal(true)
                     }
                   }}
