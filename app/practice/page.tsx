@@ -487,6 +487,13 @@ export default function PracticePage() {
         timeLimit={selectedTask.timeLimit}
         wordTarget={selectedTask.wordTarget}
         onSubmit={handleSubmit}
+        onTryAnotherTask={() => {
+          console.log('onTryAnotherTask called from practice page')
+          const newTask = generateNewTask()
+          setSelectedTask(newTask)
+        }}
+        isSignedIn={!!session}
+        hasUsedFreeAttempt={hasUsedFreeAttempt}
       />
     )
   }

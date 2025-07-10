@@ -16,6 +16,9 @@ interface WritingInterfaceProps {
     wordCount: number
     timeSpent: number
   }) => void
+  onTryAnotherTask?: () => void
+  isSignedIn?: boolean
+  hasUsedFreeAttempt?: boolean
 }
 
 export default function WritingInterface({
@@ -24,6 +27,9 @@ export default function WritingInterface({
   timeLimit,
   wordTarget,
   onSubmit,
+  onTryAnotherTask,
+  isSignedIn = false,
+  hasUsedFreeAttempt = false,
 }: WritingInterfaceProps) {
   const [response, setResponse] = useState('')
   const [timeRemaining, setTimeRemaining] = useState(timeLimit * 60) // Convert to seconds
@@ -360,8 +366,25 @@ export default function WritingInterface({
               <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
                 <button
                   onClick={() => {
-                    if (handleLinkClick('/practice')) {
-                      router.push('/practice')
+                    console.log('Try Another Task clicked from WritingInterface')
+                    console.log('isSignedIn:', isSignedIn)
+                    console.log('hasUsedFreeAttempt:', hasUsedFreeAttempt)
+                    
+                    // Check if user is signed in or hasn't used free attempt
+                    if (isSignedIn || !hasUsedFreeAttempt) {
+                      console.log('Generating new task from WritingInterface')
+                      if (onTryAnotherTask) {
+                        onTryAnotherTask()
+                      } else {
+                        // Fallback: navigate to practice page
+                        if (handleLinkClick('/practice')) {
+                          router.push('/practice')
+                        }
+                      }
+                    } else {
+                      console.log('Showing sign-in modal from WritingInterface')
+                      // Navigate to sign-in page
+                      router.push('/auth/signin')
                     }
                   }}
                   className="flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-celpip-500 transition-colors text-sm font-medium w-full sm:w-auto"
