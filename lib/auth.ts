@@ -1,5 +1,21 @@
 import NextAuth from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
+import crypto from 'crypto'
+
+// Generate a secure fallback secret if none is provided
+const generateSecret = () => {
+  if (process.env.NEXTAUTH_SECRET) {
+    return process.env.NEXTAUTH_SECRET
+  }
+  
+  // Generate a secure random secret for production
+  if (process.env.NODE_ENV === 'production') {
+    return crypto.randomBytes(32).toString('hex')
+  }
+  
+  // Development fallback
+  return 'development-secret-key-change-in-production-12345'
+}
 
 export const authOptions = {
   providers: [
@@ -32,7 +48,7 @@ export const authOptions = {
     strategy: 'jwt' as const,
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: process.env.NEXTAUTH_SECRET || 'development-secret-key-change-in-production-12345',
+  secret: generateSecret(),
   debug: process.env.NODE_ENV === 'development',
   callbacks: {
     async jwt({ token, user }: any) {

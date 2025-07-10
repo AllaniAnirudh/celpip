@@ -138,8 +138,13 @@ celpip/
 |----------|-------------|----------|---------|
 | `MONGODB_URI` | MongoDB connection string | Yes | - |
 | `NEXTAUTH_URL` | NextAuth.js base URL | Yes | `http://localhost:3000` |
-| `NEXTAUTH_SECRET` | NextAuth.js secret key | Yes | - |
+| `NEXTAUTH_SECRET` | NextAuth.js secret key | Yes | Auto-generated in production |
 | `OPENAI_API_KEY` | OpenAI API key for scoring | Yes | - |
+
+**Important**: For production deployment, you must set `NEXTAUTH_SECRET` to a secure random string. You can generate one using:
+```bash
+openssl rand -base64 32
+```
 
 ### Database Setup
 
@@ -210,6 +215,8 @@ The AI scoring system evaluates your writing based on:
    - Go to your project settings in Vercel
    - Add all environment variables from `.env.local`
    - Update `NEXTAUTH_URL` to your production domain
+   - **Important**: Set `NEXTAUTH_SECRET` to a secure random string (use `openssl rand -base64 32`)
+   - Ensure `NODE_ENV` is set to `production`
 
 ### Manual Deployment
 
@@ -260,6 +267,36 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Next.js** team for the amazing framework
 - **Vercel** for seamless deployment
 - **TailwindCSS** for the beautiful UI components
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### NextAuth Secret Errors
+If you see `NO_SECRET` or `JWT_SESSION_ERROR` errors:
+
+1. **Development**: Create a `.env.local` file with:
+   ```env
+   NEXTAUTH_SECRET=development-secret-key-change-in-production-12345
+   NEXTAUTH_URL=http://localhost:3000
+   ```
+
+2. **Production**: Set a secure secret:
+   ```bash
+   # Generate a secure secret
+   openssl rand -base64 32
+   ```
+   Then add it to your environment variables as `NEXTAUTH_SECRET`.
+
+#### MongoDB Connection Issues
+- Ensure MongoDB is running locally or your Atlas connection string is correct
+- Check that your IP is whitelisted in MongoDB Atlas
+- Verify the database name in the connection string
+
+#### OpenAI API Errors
+- Verify your API key is correct and has sufficient credits
+- Check that the API key has access to GPT-4 models
+- Ensure your account is not rate-limited
 
 ## 📞 Support
 
