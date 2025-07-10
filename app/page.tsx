@@ -5,8 +5,32 @@ import Link from 'next/link'
 import { Mail, FileText, BarChart3, Clock, Target } from 'lucide-react'
 import Navigation from '@/components/Navigation'
 
+// Function to fetch user statistics
+async function fetchUserStats() {
+  try {
+    const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/stats`, {
+      cache: 'no-store'
+    })
+    if (response.ok) {
+      return await response.json()
+    }
+  } catch (error) {
+    console.error('Error fetching stats:', error)
+  }
+  
+  // Return default stats if fetch fails
+  return {
+    totalAttempts: 0,
+    averageScore: 0,
+    timePracticed: 0,
+    wordsWritten: 0,
+    recentAttempts: []
+  }
+}
+
 export default async function HomePage() {
   const session = await getServerSession(authOptions)
+  const stats = await fetchUserStats()
 
   // Remove mandatory authentication for now
   // if (!session) {
@@ -72,7 +96,7 @@ export default async function HomePage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Attempts</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalAttempts}</p>
               </div>
             </div>
           </div>
@@ -84,7 +108,9 @@ export default async function HomePage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Average Score</p>
-                <p className="text-2xl font-bold text-gray-900">-</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.averageScore > 0 ? stats.averageScore.toFixed(1) : '-'}
+                </p>
               </div>
             </div>
           </div>
@@ -96,7 +122,9 @@ export default async function HomePage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Time Practiced</p>
-                <p className="text-2xl font-bold text-gray-900">0h</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.timePracticed > 0 ? `${Math.floor(stats.timePracticed / 60)}h ${stats.timePracticed % 60}m` : '0h'}
+                </p>
               </div>
             </div>
           </div>
@@ -108,7 +136,7 @@ export default async function HomePage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Words Written</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.wordsWritten}</p>
               </div>
             </div>
           </div>
@@ -203,11 +231,47 @@ export default async function HomePage() {
         <div className="mt-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Recent Activity</h2>
           <div className="bg-white rounded-lg shadow">
-            <div className="p-6 text-center text-gray-500">
-              <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>No recent writing attempts</p>
-              <p className="text-sm">Start practicing to see your progress here</p>
-            </div>
+            {stats.recentAttempts && stats.recentAttempts.length > 0 ? (
+              <div className="divide-y divide-gray-200">
+                {stats.recentAttempts.map((attempt: any) => (
+                  <div key={attempt.id} className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className={`p-2 rounded-lg ${
+                          attempt.taskType === 'email' ? 'bg-celpip-100' : 'bg-green-100'
+                        }`}>
+                          {attempt.taskType === 'email' ? (
+                            <Mail className="h-5 w-5 text-celpip-600" />
+                          ) : (
+                            <FileText className="h-5 w-5 text-green-600" />
+                          )}
+                        </div>
+                        <div className="ml-4">
+                          <p className="text-sm font-medium text-gray-900">
+                            {attempt.taskType === 'email' ? 'Email Writing' : 'Survey Response'}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {new Date(attempt.createdAt).toLocaleDateString()} • {attempt.wordCount} words • {attempt.timeSpent} min
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-semibold text-gray-900">
+                          {attempt.score}/9
+                        </p>
+                        <p className="text-sm text-gray-500">Score</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-6 text-center text-gray-500">
+                <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No recent writing attempts</p>
+                <p className="text-sm">Start practicing to see your progress here</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

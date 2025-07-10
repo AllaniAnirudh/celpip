@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import Navigation from '@/components/Navigation'
 import { Mail, FileText, Lock, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
+import { useStatsRefresh } from '@/hooks/useStatsRefresh'
 
 // Combined prompts for random selection
 const EMAIL_PROMPTS = [
@@ -149,6 +150,7 @@ Provide detailed answers with examples from your own experience. Write 150-200 w
 export default function PracticePage() {
   const { data: session } = useSession()
   const router = useRouter()
+  const { refreshStats } = useStatsRefresh()
   const [selectedTask, setSelectedTask] = useState<{
     type: 'email' | 'survey'
     prompt: any
@@ -259,6 +261,12 @@ export default function PracticePage() {
         timeSpent: data.timeSpent,
       })
       setShowResults(true)
+      
+      // Refresh stats on dashboard after successful submission
+      // This will update the stats when user returns to dashboard
+      setTimeout(() => {
+        refreshStats()
+      }, 1000)
     } catch (error) {
       console.error('Submission error:', error)
       toast.error('Failed to submit response. Please try again.')
