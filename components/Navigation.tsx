@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
-import { User, LogOut, Home, FileText, LogIn } from 'lucide-react'
+import { User, LogOut, Home, FileText, LogIn, BookOpen } from 'lucide-react'
 
 export default function Navigation() {
   const { data: session } = useSession()
@@ -34,6 +34,14 @@ export default function Navigation() {
               Dashboard
             </Link>
 
+            <Link
+              href="/tips"
+              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+            >
+              <BookOpen className="h-4 w-4 mr-1" />
+              Writing Tips
+            </Link>
+
             {session ? (
               <div className="flex items-center space-x-3">
                 <div className="flex items-center text-sm text-gray-700">
@@ -52,10 +60,10 @@ export default function Navigation() {
             ) : (
               <Link
                 href="/auth/signin"
-                className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                className="flex items-center px-4 py-2 text-sm font-medium text-white bg-celpip-600 hover:bg-celpip-700 rounded-md transition-colors"
               >
                 <LogIn className="h-4 w-4 mr-1" />
-                Sign In
+                Sign In / Sign Up
               </Link>
             )}
           </div>

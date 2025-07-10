@@ -21,20 +21,46 @@ export default async function HomePage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             {session ? `Welcome back, ${session.user?.name}!` : 'Welcome to CELPIP Writing Practice!'}
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 mb-6">
             Practice your CELPIP Writing skills with AI-powered feedback
           </p>
-          {!session && (
-            <div className="mt-4">
-              <Link
-                href="/auth/signin"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-celpip-600 hover:bg-celpip-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-celpip-500 transition-colors"
-              >
-                Sign In
-              </Link>
-            </div>
-          )}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Link
+              href="/practice"
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-celpip-600 hover:bg-celpip-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-celpip-500 transition-colors"
+            >
+              Start Practice
+              <FileText className="ml-2 h-4 w-4" />
+            </Link>
+            <Link
+              href="/tips"
+              className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-celpip-500 transition-colors"
+            >
+              View Writing Tips
+              <FileText className="ml-2 h-4 w-4" />
+            </Link>
+          </div>
         </div>
+
+        {/* Free Attempt Notice */}
+        {!session && (
+          <div className="mb-6">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-blue-700">
+                    <strong>Free Trial:</strong> Try one practice session without signing up. Sign in to continue practicing and track your progress.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -106,7 +132,7 @@ export default async function HomePage() {
               
               <p className="text-gray-700 mb-6">
                 Write a formal or informal email in response to a given situation. 
-                You will be provided with a scenario and asked to compose an appropriate email.
+                You will be randomly assigned a scenario and asked to compose an appropriate email.
               </p>
 
               <div className="space-y-3 mb-6">
@@ -122,15 +148,11 @@ export default async function HomePage() {
                   <div className="w-2 h-2 bg-celpip-500 rounded-full mr-2"></div>
                   Address all points in the prompt
                 </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-celpip-500 rounded-full mr-2"></div>
+                  Random prompt selection
+                </div>
               </div>
-
-              <Link
-                href="/practice/email"
-                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-celpip-600 hover:bg-celpip-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-celpip-500 transition-colors"
-              >
-                Start Practice
-                <Mail className="ml-2 h-4 w-4" />
-              </Link>
             </div>
           </div>
 
@@ -151,7 +173,7 @@ export default async function HomePage() {
               
               <p className="text-gray-700 mb-6">
                 Respond to survey questions by providing detailed answers. 
-                You will be given a survey scenario and asked to write comprehensive responses.
+                You will be randomly assigned a survey scenario and asked to write comprehensive responses.
               </p>
 
               <div className="space-y-3 mb-6">
@@ -167,15 +189,11 @@ export default async function HomePage() {
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                   Support opinions with examples
                 </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                  Random prompt selection
+                </div>
               </div>
-
-              <Link
-                href="/practice/survey"
-                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
-              >
-                Start Practice
-                <FileText className="ml-2 h-4 w-4" />
-              </Link>
             </div>
           </div>
         </div>
