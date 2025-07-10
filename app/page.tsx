@@ -1,11 +1,12 @@
 import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 // import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, FileText, BarChart3, Clock, Target } from 'lucide-react'
 import Navigation from '@/components/Navigation'
 
 export default async function HomePage() {
-  const session = await getServerSession()
+  const session = await getServerSession(authOptions)
 
   // Remove mandatory authentication for now
   // if (!session) {
