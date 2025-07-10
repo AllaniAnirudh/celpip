@@ -180,7 +180,7 @@ export default async function HomePage() {
               <div className="space-y-3 mb-6">
                 <div className="flex items-center text-sm text-gray-600">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                  Write 200-250 words
+                  Write 150-200 words
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
