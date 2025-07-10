@@ -8,12 +8,23 @@ export async function GET(request: NextRequest) {
     // Get the current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
+    // Get guest ID from query params for guest users
+    const { searchParams } = new URL(request.url)
+    const guestId = searchParams.get('guestId')
+    
     let query = supabase.from('writing_attempts').select('*')
+    
     if (user && !authError) {
+      // Signed-in user: filter by user_id
       query = query.eq('user_id', user.id)
+    } else if (guestId) {
+      // Guest user: filter by guest_id
+      query = query.eq('guest_id', guestId)
     } else {
-      query = query.is('user_id', null)
+      // Fallback: show no attempts for guests without guestId
+      query = query.eq('guest_id', 'no_guest_id')
     }
+    
     const { data: attempts, error } = await query.order('created_at', { ascending: false })
 
     if (error) {

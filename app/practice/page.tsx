@@ -7,6 +7,7 @@ import WritingInterface from '@/components/WritingInterface'
 import { useStatsRefresh } from '@/hooks/useStatsRefresh'
 import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'react-hot-toast'
+import { supabase } from '@/lib/supabaseClient'
 
 // Combined prompts for random selection
 const EMAIL_PROMPTS = [
@@ -241,10 +242,23 @@ export default function PracticePage() {
     timeSpent: number
   }) => {
     try {
+      // Get the user's access token if signed in
+      let accessToken: string | undefined = undefined
+      let guestId: string | undefined = undefined
+      
+      if (user) {
+        const session = await supabase.auth.getSession()
+        accessToken = session.data.session?.access_token
+      } else {
+        // Get guest ID for guest users
+        guestId = getGuestAnonId()
+      }
+      
       const response = await fetch('/api/score', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify({
           prompt: selectedTask.prompt.prompt,
@@ -252,6 +266,7 @@ export default function PracticePage() {
           taskType: selectedTask.type,
           wordCount: data.wordCount,
           timeSpent: data.timeSpent,
+          guestId: guestId,
         }),
       })
 
