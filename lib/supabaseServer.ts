@@ -4,9 +4,9 @@ import { cookies } from 'next/headers'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-export function createServerComponentClient() {
+export function createServerComponentClient(accessToken?: string) {
   const cookieStore = cookies()
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
+  const client = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll()
@@ -22,4 +22,9 @@ export function createServerComponentClient() {
       },
     },
   })
+  if (accessToken) {
+    // @ts-ignore
+    client.auth.setSession({ access_token: accessToken, refresh_token: null })
+  }
+  return client
 } 

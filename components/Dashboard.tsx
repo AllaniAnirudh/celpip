@@ -14,7 +14,7 @@ interface Stats {
 }
 
 export default function Dashboard() {
-  const { user, loading, hasUsedFreeTest, promoCodeApplied, remainingTests, canTakeMoreTests } = useAuth()
+  const { user, loading, hasUsedFreeTest, promoCodeApplied, remainingTests, canTakeMoreTests, getGuestAnonId } = useAuth()
   const [stats, setStats] = useState<Stats>({
     totalAttempts: 0,
     averageScore: 0,
@@ -32,7 +32,13 @@ export default function Dashboard() {
       setStatsLoading(true)
       console.log('Fetching stats for user:', user?.id || 'guest')
       
-      const response = await fetch('/api/stats', {
+      // Get guest ID for guest users
+      const guestId = !user ? getGuestAnonId() : null
+      
+      // Build URL with guest ID for guest users
+      const url = guestId ? `/api/stats?guestId=${guestId}` : '/api/stats'
+      
+      const response = await fetch(url, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache'
@@ -74,7 +80,7 @@ export default function Dashboard() {
         fetchUserStats()
       }
     }
-  }, [loading, user, lastUserState])
+  }, [loading, user, lastUserState, getGuestAnonId])
 
   if (loading) {
     return (

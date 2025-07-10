@@ -18,6 +18,15 @@ export function useAuth() {
       const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user ?? null)
       setLoading(false)
+      
+      // Check free test usage based on user state
+      if (session?.user) {
+        await ensureUserExists(session.user)
+        await checkFreeTestUsage(session.user.id)
+      } else {
+        // Check guest free test usage on initial load
+        checkGuestFreeTestUsage()
+      }
     }
 
     getInitialSession()
@@ -88,12 +97,16 @@ export function useAuth() {
   const checkGuestFreeTestUsage = () => {
     try {
       const guestData = localStorage.getItem('celpip_guest_data')
+      console.log('Checking guest free test usage. Guest data:', guestData)
+      
       if (guestData) {
         const { hasUsedFreeTest: guestHasUsed, promoCodeApplied: guestPromoApplied, remainingTests: guestRemaining } = JSON.parse(guestData)
+        console.log('Parsed guest data:', { guestHasUsed, guestPromoApplied, guestRemaining })
         setHasUsedFreeTest(guestHasUsed ?? false)
         setPromoCodeApplied(guestPromoApplied ?? false)
         setRemainingTests(guestRemaining ?? 0)
       } else {
+        console.log('No guest data found, setting defaults')
         setHasUsedFreeTest(false)
         setPromoCodeApplied(false)
         setRemainingTests(0)
@@ -215,6 +228,13 @@ export function useAuth() {
   // Check if user can take more tests
   const canTakeMoreTests = () => {
     const result = promoCodeApplied && remainingTests > 0 ? true : !hasUsedFreeTest
+    console.log('canTakeMoreTests check:', {
+      user: user?.id || 'guest',
+      promoCodeApplied,
+      remainingTests,
+      hasUsedFreeTest,
+      result
+    })
     return result
   }
 

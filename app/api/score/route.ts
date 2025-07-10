@@ -31,7 +31,7 @@ Word Count: {wordCount}
 
 export async function POST(request: NextRequest) {
   try {
-    const { taskType, prompt, response, wordCount, timeSpent } = await request.json()
+    const { taskType, prompt, response, wordCount, timeSpent, guestId } = await request.json()
 
     if (!taskType || !prompt || !response || !wordCount) {
       return NextResponse.json(
@@ -39,6 +39,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Get access token from Authorization header
+    const authHeader = request.headers.get('authorization')
+    const accessToken = authHeader?.split(' ')[1]
 
     // Mock scoring result for local testing (using 11-band scale)
     const scoringResult = {
@@ -57,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save attempt to database
-    const supabase = createServerComponentClient()
+    const supabase = createServerComponentClient(accessToken)
     
     // Get user from session
     const { data: { user } } = await supabase.auth.getUser()
@@ -66,6 +70,7 @@ export async function POST(request: NextRequest) {
       .from('writing_attempts')
       .insert({
         user_id: user?.id || null,
+        guest_id: !user?.id ? guestId : null, // Save guest_id only for guest users
         task_type: taskType,
         prompt: prompt,
         response: response,
