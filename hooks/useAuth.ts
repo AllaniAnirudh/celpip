@@ -9,6 +9,8 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [hasUsedFreeTest, setHasUsedFreeTest] = useState(false)
+  const [promoCodeApplied, setPromoCodeApplied] = useState(false)
+  const [remainingTests, setRemainingTests] = useState(0)
 
   useEffect(() => {
     // Get initial session
@@ -67,14 +69,18 @@ export function useAuth() {
     try {
       const { data: user } = await supabase
         .from('users')
-        .select('has_used_free_test')
+        .select('has_used_free_test, promo_code_applied, remaining_tests')
         .eq('id', userId)
         .single()
 
       setHasUsedFreeTest(user?.has_used_free_test ?? false)
+      setPromoCodeApplied(user?.promo_code_applied ?? false)
+      setRemainingTests(user?.remaining_tests ?? 0)
     } catch (error) {
       console.error('Error checking free test usage:', error)
       setHasUsedFreeTest(false)
+      setPromoCodeApplied(false)
+      setRemainingTests(0)
     }
   }
 
@@ -83,14 +89,20 @@ export function useAuth() {
     try {
       const guestData = localStorage.getItem('celpip_guest_data')
       if (guestData) {
-        const { hasUsedFreeTest: guestHasUsed } = JSON.parse(guestData)
+        const { hasUsedFreeTest: guestHasUsed, promoCodeApplied: guestPromoApplied, remainingTests: guestRemaining } = JSON.parse(guestData)
         setHasUsedFreeTest(guestHasUsed ?? false)
+        setPromoCodeApplied(guestPromoApplied ?? false)
+        setRemainingTests(guestRemaining ?? 0)
       } else {
         setHasUsedFreeTest(false)
+        setPromoCodeApplied(false)
+        setRemainingTests(0)
       }
     } catch (error) {
       console.error('Error checking guest free test usage:', error)
       setHasUsedFreeTest(false)
+      setPromoCodeApplied(false)
+      setRemainingTests(0)
     }
   }
 
@@ -127,6 +139,54 @@ export function useAuth() {
     }
   }
 
+  // Apply promo code
+  const applyPromoCode = async (code: string): Promise<boolean> => {
+    // Static promo code validation
+    if (code === 'CELPIP10') {
+      if (user) {
+        // Signed-in user
+        try {
+          await supabase
+            .from('users')
+            .update({ 
+              promo_code_applied: true,
+              remaining_tests: 10
+            })
+            .eq('id', user.id)
+          
+          setPromoCodeApplied(true)
+          setRemainingTests(10)
+          return true
+        } catch (error) {
+          console.error('Error applying promo code for signed-in user:', error)
+          return false
+        }
+      } else {
+        // Guest user
+        try {
+          const guestData = localStorage.getItem('celpip_guest_data')
+          const existingData = guestData ? JSON.parse(guestData) : {}
+          
+          const newData = {
+            ...existingData,
+            anon_id: existingData.anon_id || uuidv4(),
+            promoCodeApplied: true,
+            remainingTests: 10
+          }
+          
+          localStorage.setItem('celpip_guest_data', JSON.stringify(newData))
+          setPromoCodeApplied(true)
+          setRemainingTests(10)
+          return true
+        } catch (error) {
+          console.error('Error applying promo code for guest:', error)
+          return false
+        }
+      }
+    }
+    return false
+  }
+
   // Get guest anon_id
   const getGuestAnonId = () => {
     try {
@@ -140,7 +200,9 @@ export function useAuth() {
       const newAnonId = uuidv4()
       const newData = {
         anon_id: newAnonId,
-        hasUsedFreeTest: false
+        hasUsedFreeTest: false,
+        promoCodeApplied: false,
+        remainingTests: 0
       }
       localStorage.setItem('celpip_guest_data', JSON.stringify(newData))
       return newAnonId
@@ -150,11 +212,56 @@ export function useAuth() {
     }
   }
 
+  // Check if user can take more tests
+  const canTakeMoreTests = () => {
+    const result = promoCodeApplied && remainingTests > 0 ? true : !hasUsedFreeTest
+    return result
+  }
+
+  // Decrement remaining tests
+  const decrementRemainingTests = async () => {
+    if (remainingTests > 0) {
+      if (user) {
+        // Signed-in user
+        try {
+          await supabase
+            .from('users')
+            .update({ remaining_tests: remainingTests - 1 })
+            .eq('id', user.id)
+          setRemainingTests(remainingTests - 1)
+        } catch (error) {
+          console.error('Error decrementing remaining tests:', error)
+        }
+      } else {
+        // Guest user
+        try {
+          const guestData = localStorage.getItem('celpip_guest_data')
+          const existingData = guestData ? JSON.parse(guestData) : {}
+          
+          const newData = {
+            ...existingData,
+            remainingTests: remainingTests - 1
+          }
+          
+          localStorage.setItem('celpip_guest_data', JSON.stringify(newData))
+          setRemainingTests(remainingTests - 1)
+        } catch (error) {
+          console.error('Error decrementing remaining tests for guest:', error)
+        }
+      }
+    }
+  }
+
   return {
     user,
     loading,
     hasUsedFreeTest,
+    promoCodeApplied,
+    remainingTests,
     markFreeTestAsUsed,
-    getGuestAnonId
+    getGuestAnonId,
+    applyPromoCode,
+    canTakeMoreTests,
+    decrementRemainingTests
   }
 } 

@@ -18,7 +18,7 @@ interface WritingInterfaceProps {
   }) => void
   onTryAnotherTask?: () => void
   isSignedIn?: boolean
-  hasUsedFreeAttempt?: boolean
+  canTakeMoreTests?: boolean
 }
 
 export default function WritingInterface({
@@ -29,7 +29,7 @@ export default function WritingInterface({
   onSubmit,
   onTryAnotherTask,
   isSignedIn = false,
-  hasUsedFreeAttempt = false,
+  canTakeMoreTests = true,
 }: WritingInterfaceProps) {
   const [response, setResponse] = useState('')
   const [timeRemaining, setTimeRemaining] = useState(timeLimit) // timeLimit is already in seconds
@@ -205,9 +205,9 @@ export default function WritingInterface({
   const handleTryAnotherTask = () => {
     console.log('handleTryAnotherTask called')
     console.log('isSignedIn:', isSignedIn)
-    console.log('hasUsedFreeAttempt:', hasUsedFreeAttempt)
+    console.log('canTakeMoreTests:', canTakeMoreTests)
     
-    if (isSignedIn || !hasUsedFreeAttempt) {
+    if (isSignedIn || canTakeMoreTests) {
       console.log('Calling onTryAnotherTask')
       if (onTryAnotherTask) {
         onTryAnotherTask()
