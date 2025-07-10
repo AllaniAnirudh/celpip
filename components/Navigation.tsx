@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { User, LogOut, Home, FileText, LogIn, BookOpen, Mic } from 'lucide-react'
+import { User, LogOut, Home, FileText, LogIn, BookOpen, Mic, Edit3 } from 'lucide-react'
 
 export default function Navigation() {
   const [user, setUser] = useState<any>(null)
@@ -50,6 +50,14 @@ export default function Navigation() {
             >
               <Home className="h-4 w-4 mr-1" />
               Dashboard
+            </Link>
+
+            <Link
+              href="/practice"
+              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+            >
+              <Edit3 className="h-4 w-4 mr-1" />
+              Practice
             </Link>
 
             <Link

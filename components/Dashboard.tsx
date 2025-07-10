@@ -14,7 +14,7 @@ interface Stats {
 }
 
 export default function Dashboard() {
-  const { user, loading, hasUsedFreeTest } = useAuth()
+  const { user, loading, hasUsedFreeTest, promoCodeApplied, remainingTests, canTakeMoreTests } = useAuth()
   const [stats, setStats] = useState<Stats>({
     totalAttempts: 0,
     averageScore: 0,
@@ -103,20 +103,23 @@ export default function Dashboard() {
           )}
         </p>
         <div className="flex flex-col sm:flex-row gap-4">
-          {hasUsedFreeTest ? (
-            <Link
-              href="/pay"
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-celpip-600 hover:bg-celpip-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-celpip-500 transition-colors"
-            >
-              Unlock More Tests
-              <FileText className="ml-2 h-4 w-4" />
-            </Link>
-          ) : (
+          {canTakeMoreTests() ? (
             <Link
               href="/practice"
               className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-celpip-600 hover:bg-celpip-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-celpip-500 transition-colors"
             >
               Start Practice
+              {promoCodeApplied && remainingTests > 0 && (
+                <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-1 rounded">{remainingTests} left</span>
+              )}
+              <FileText className="ml-2 h-4 w-4" />
+            </Link>
+          ) : (
+            <Link
+              href="/pay"
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-celpip-600 hover:bg-celpip-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-celpip-500 transition-colors"
+            >
+              Unlock More Tests
               <FileText className="ml-2 h-4 w-4" />
             </Link>
           )}

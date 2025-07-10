@@ -148,7 +148,7 @@ Provide detailed answers with examples from your own experience. Write 150-200 w
 export default function PracticePage() {
   const router = useRouter()
   const { refreshStats } = useStatsRefresh()
-  const { user, loading, hasUsedFreeTest, markFreeTestAsUsed, getGuestAnonId } = useAuth()
+  const { user, loading, hasUsedFreeTest, promoCodeApplied, remainingTests, markFreeTestAsUsed, getGuestAnonId, canTakeMoreTests, decrementRemainingTests } = useAuth()
   const [selectedTask, setSelectedTask] = useState<{
     type: 'email' | 'survey'
     prompt: { prompt: string; title: string }
@@ -187,20 +187,27 @@ export default function PracticePage() {
     return newTask
   }
 
+  // Check if user can take more tests
+  const canTakeMoreTestsValue = canTakeMoreTests()
+
   // Check if user has used their free attempt and redirect if needed
   useEffect(() => {
-    if (!loading && hasUsedFreeTest) {
-      toast.error('You have already used your free test. Please upgrade to continue.')
+    if (!loading && !canTakeMoreTestsValue) {
+      if (promoCodeApplied && remainingTests === 0) {
+        toast.error('You have used all your promo code tests. Please upgrade to continue.')
+      } else {
+        toast.error('You have already used your free test. Please upgrade to continue.')
+      }
       router.push('/pay')
     }
-  }, [loading, hasUsedFreeTest, router])
+  }, [loading, canTakeMoreTestsValue, promoCodeApplied, remainingTests, router])
 
   // Generate initial task when component mounts
   useEffect(() => {
-    if (!loading && !hasUsedFreeTest) {
+    if (!loading && canTakeMoreTestsValue && !selectedTask) {
       setSelectedTask(generateNewTask())
     }
-  }, [loading, hasUsedFreeTest])
+  }, [loading, canTakeMoreTestsValue, selectedTask])
 
   if (loading) {
     return (
@@ -213,7 +220,7 @@ export default function PracticePage() {
     )
   }
 
-  if (hasUsedFreeTest) {
+  if (!canTakeMoreTestsValue) {
     return null // Will redirect to /pay
   }
 
@@ -254,8 +261,14 @@ export default function PracticePage() {
 
       const result = await response.json()
       
-      // Mark free test as used after successful submission
-      await markFreeTestAsUsed()
+      // Mark free test as used or decrement remaining tests
+      if (promoCodeApplied && remainingTests > 0) {
+        // User has a promo code applied, decrement remaining tests
+        await decrementRemainingTests()
+      } else if (!hasUsedFreeTest) {
+        // User hasn't used their free test yet
+        await markFreeTestAsUsed()
+      }
       
       // Store attempt data for feedback page
       const attemptData = {
@@ -279,7 +292,7 @@ export default function PracticePage() {
       refreshStats()
 
       // Redirect to feedback page
-      router.push(`/feedback/${result.attemptId}`)
+      window.location.href = `/feedback/${result.attemptId}`
     } catch (error) {
       console.error('Error submitting response:', error)
       toast.error('Failed to submit response. Please try again.')
@@ -287,7 +300,7 @@ export default function PracticePage() {
   }
 
   const handleNewTask = () => {
-    if (hasUsedFreeTest) {
+    if (!canTakeMoreTestsValue) {
       router.push('/pay')
       return
     }
@@ -318,7 +331,7 @@ export default function PracticePage() {
           onTryAnotherTask={handleNewTask}
           taskType={selectedTask.type}
           isSignedIn={!!user}
-          hasUsedFreeAttempt={hasUsedFreeTest}
+          canTakeMoreTests={canTakeMoreTestsValue}
         />
       </div>
     </div>
