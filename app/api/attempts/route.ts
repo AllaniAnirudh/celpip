@@ -1,89 +1,102 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-// import dbConnect from '@/lib/mongodb'
-// import WritingAttempt from '@/models/WritingAttempt'
+import { createServerComponentClient } from '@/lib/supabaseServer'
+import type { Database } from '@/lib/database.types'
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const supabase = createServerComponentClient()
     
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
+    // Get the current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    // Allow both authenticated and guest users to save attempts
+    // For guest users, user will be null but we still save the attempt
 
-    const { taskType, prompt, response, wordCount, timeSpent, score } = await request.json()
+    const body = await request.json()
+    const { taskType, prompt, response, wordCount, timeSpent, score } = body
 
+    // Validate required fields
     if (!taskType || !prompt || !response || !wordCount || !timeSpent || !score) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Mock save attempt for local testing
-    // In production, this would save to MongoDB
-    console.log('Mock save attempt:', { taskType, wordCount, timeSpent, score })
+    // Insert the attempt into the database
+    const { data, error } = await supabase
+      .from('writing_attempts')
+      .insert({
+        user_id: user?.id || null,
+        task_type: taskType,
+        prompt: prompt,
+        response: response,
+        word_count: wordCount,
+        time_spent: timeSpent,
+        score: score
+      })
+      .select()
+      .single()
 
-    return NextResponse.json(
-      { 
-        message: 'Attempt saved successfully (mock)',
-        attemptId: 'mock-attempt-id'
-      },
-      { status: 201 }
-    )
+    if (error) {
+      console.error('Database error:', error)
+      return NextResponse.json({ error: 'Failed to save attempt' }, { status: 500 })
+    }
+
+    console.log('Attempt saved successfully:', data)
+    return NextResponse.json({ success: true, data })
+
   } catch (error) {
-    console.error('Save attempt error:', error)
-    return NextResponse.json(
-      { error: 'Failed to save attempt' },
-      { status: 500 }
-    )
+    console.error('Server error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    const supabase = createServerComponentClient()
+    const { searchParams } = new URL(request.url)
+    const attemptId = searchParams.get('id')
+    const limit = searchParams.get('limit')
+
+    if (attemptId) {
+      // Fetch by attempt ID (for feedback page)
+      const { data, error } = await supabase
+        .from('writing_attempts')
+        .select('*')
+        .eq('id', attemptId)
+        .single()
+      if (error || !data) {
+        return NextResponse.json({ error: 'Attempt not found' }, { status: 404 })
+      }
+      return NextResponse.json({ attempt: data })
     }
 
-    // Mock attempts data for local testing
-    // In production, this would fetch from MongoDB
-    const mockAttempts = [
-      {
-        id: 'mock-1',
-        taskType: 'email',
-        prompt: 'Write an email...',
-        response: 'Dear...',
-        wordCount: 180,
-        timeSpent: 1200,
-        score: {
-          overall: 8,
-          grammar: 8,
-          vocabulary: 7,
-          coherence: 9,
-          taskRelevance: 8,
-        },
-        feedback: 'Good work!',
-        improvementTips: ['Improve vocabulary'],
-        submittedAt: new Date().toISOString(),
+    // Get the current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    let query = supabase.from('writing_attempts').select('*')
+    if (user && !authError) {
+      query = query.eq('user_id', user.id)
+    } else {
+      query = query.is('user_id', null)
+    }
+    
+    // Apply limit if specified
+    if (limit) {
+      const limitNum = parseInt(limit, 10)
+      if (!isNaN(limitNum) && limitNum > 0) {
+        query = query.limit(limitNum)
       }
-    ]
+    }
+    
+    const { data, error } = await query.order('created_at', { ascending: false })
 
-    return NextResponse.json(mockAttempts)
+    if (error) {
+      console.error('Database error:', error)
+      return NextResponse.json({ error: 'Failed to fetch attempts' }, { status: 500 })
+    }
+
+    return NextResponse.json({ attempts: data || [] })
+
   } catch (error) {
-    console.error('Get attempts error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch attempts' },
-      { status: 500 }
-    )
+    console.error('Server error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 } 

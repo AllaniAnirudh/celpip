@@ -1,20 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createServerComponentClient } from '@/lib/supabaseServer'
 // import OpenAI from 'openai'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 
 // const openai = new OpenAI({
 //   apiKey: process.env.OPENAI_API_KEY,
 // })
 
 const CELPIP_SCORING_PROMPT = `
-You are a CELPIP Writing examiner. Evaluate the following writing response based on the CELPIP scoring rubric (bands 1-12).
+You are a CELPIP Writing examiner. Evaluate the following writing response based on the CELPIP scoring rubric (bands 1-11).
 
 CELPIP Writing Band Descriptors:
-- Bands 10-12: Excellent command of English with minimal errors
-- Bands 7-9: Good command with some errors that don't impede communication
-- Bands 4-6: Adequate command with errors that may impede communication
-- Bands 1-3: Limited command with frequent errors that impede communication
+- Bands 9-11: Excellent command of English with minimal errors
+- Bands 6-8: Good command with some errors that don't impede communication
+- Bands 3-5: Adequate command with errors that may impede communication
+- Bands 1-2: Limited command with frequent errors that impede communication
 
 Scoring Criteria:
 1. Grammar (25%): Accuracy of grammar structures
@@ -22,7 +21,7 @@ Scoring Criteria:
 3. Coherence (25%): Logical organization and flow
 4. Task Relevance (25%): How well the response addresses the prompt
 
-Provide scores for each criterion (1-12) and an overall score. Include detailed feedback and specific improvement tips.
+Provide scores for each criterion (1-11) and an overall score. Include detailed feedback and specific improvement tips.
 
 Task Type: {taskType}
 Prompt: {prompt}
@@ -32,16 +31,7 @@ Word Count: {wordCount}
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    const { taskType, prompt, response, wordCount } = await request.json()
+    const { taskType, prompt, response, wordCount, timeSpent } = await request.json()
 
     if (!taskType || !prompt || !response || !wordCount) {
       return NextResponse.json(
@@ -50,7 +40,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Mock scoring result for local testing
+    // Mock scoring result for local testing (using 11-band scale)
     const scoringResult = {
       overall: 8,
       grammar: 8,
@@ -66,7 +56,39 @@ export async function POST(request: NextRequest) {
       ]
     }
 
-    return NextResponse.json(scoringResult)
+    // Save attempt to database
+    const supabase = createServerComponentClient()
+    
+    // Get user from session
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    const { data: attempt, error } = await supabase
+      .from('writing_attempts')
+      .insert({
+        user_id: user?.id || null,
+        task_type: taskType,
+        prompt: prompt,
+        response: response,
+        word_count: wordCount,
+        time_spent: timeSpent || 0,
+        score: scoringResult,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error saving attempt:', error)
+      return NextResponse.json(
+        { error: 'Failed to save attempt' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      ...scoringResult,
+      attemptId: attempt.id
+    })
   } catch (error) {
     console.error('Scoring error:', error)
     return NextResponse.json(

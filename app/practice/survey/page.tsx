@@ -17,7 +17,7 @@ const SURVEY_PROMPTS = [
 4. How has your work-life balance changed over the past five years?
 5. What advice would you give to someone struggling with work-life balance?
 
-Provide detailed answers with specific examples and explanations. Write 200-250 words.`,
+Provide detailed answers with specific examples and explanations. Write 150-200 words.`,
   },
   {
     id: 2,
@@ -30,7 +30,7 @@ Provide detailed answers with specific examples and explanations. Write 200-250 
 4. How do you manage screen time and digital wellness?
 5. What technology trends do you think will be most important in the next decade?
 
-Support your opinions with personal experiences and examples. Write 200-250 words.`,
+Support your opinions with personal experiences and examples. Write 150-200 words.`,
   },
   {
     id: 3,
@@ -43,7 +43,7 @@ Support your opinions with personal experiences and examples. Write 200-250 word
 4. How do you think individuals can make the biggest impact on environmental issues?
 5. What role should governments and businesses play in addressing climate change?
 
-Provide thoughtful responses with specific examples and suggestions. Write 200-250 words.`,
+Provide thoughtful responses with specific examples and suggestions. Write 150-200 words.`,
   },
   {
     id: 4,
@@ -56,7 +56,7 @@ Provide thoughtful responses with specific examples and suggestions. Write 200-2
 4. What challenges do you face when trying to learn something new?
 5. How do you think education should adapt to meet future workforce needs?
 
-Include personal experiences and specific examples in your responses. Write 200-250 words.`,
+Include personal experiences and specific examples in your responses. Write 150-200 words.`,
   },
   {
     id: 5,
@@ -69,7 +69,7 @@ Include personal experiences and specific examples in your responses. Write 200-
 4. How do you think technology affects community engagement?
 5. What would make you more likely to participate in community events or volunteer work?
 
-Provide detailed answers with examples from your own experience. Write 200-250 words.`,
+Provide detailed answers with examples from your own experience. Write 150-200 words.`,
   },
 ]
 
