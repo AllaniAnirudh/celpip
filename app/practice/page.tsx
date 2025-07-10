@@ -1,14 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import WritingInterface from '@/components/WritingInterface'
-import toast from 'react-hot-toast'
 import Navigation from '@/components/Navigation'
-import { Mail, FileText, Lock, ArrowRight } from 'lucide-react'
-import Link from 'next/link'
+import WritingInterface from '@/components/WritingInterface'
 import { useStatsRefresh } from '@/hooks/useStatsRefresh'
+import { useAuth } from '@/hooks/useAuth'
+import { toast } from 'react-hot-toast'
 
 // Combined prompts for random selection
 const EMAIL_PROMPTS = [
@@ -148,55 +146,87 @@ Provide detailed answers with examples from your own experience. Write 150-200 w
 ]
 
 export default function PracticePage() {
-  const { data: session } = useSession()
   const router = useRouter()
   const { refreshStats } = useStatsRefresh()
+  const { user, loading, hasUsedFreeTest, markFreeTestAsUsed, getGuestAnonId } = useAuth()
   const [selectedTask, setSelectedTask] = useState<{
     type: 'email' | 'survey'
-    prompt: any
+    prompt: { prompt: string; title: string }
     timeLimit: number
     wordTarget: { min: number; max: number }
   } | null>(null)
-  const [showResults, setShowResults] = useState(false)
-  const [results, setResults] = useState<any>(null)
-  const [hasUsedFreeAttempt, setHasUsedFreeAttempt] = useState(false)
-  const [showSignInModal, setShowSignInModal] = useState(false)
 
   // Function to generate a new random task
   const generateNewTask = () => {
-    console.log('generateNewTask called')
-    const taskType = Math.random() < 0.5 ? 'email' : 'survey'
-    const prompts = taskType === 'email' ? EMAIL_PROMPTS : SURVEY_PROMPTS
+    const taskTypes: ('email' | 'survey')[] = ['email', 'survey']
+    const randomType = taskTypes[Math.floor(Math.random() * taskTypes.length)]
+    
+    let prompts: { prompt: string; title: string }[]
+    let timeLimit: number
+    let wordTarget: { min: number; max: number }
+    
+    if (randomType === 'email') {
+      prompts = EMAIL_PROMPTS
+      timeLimit = 20 * 60 // 20 minutes
+      wordTarget = { min: 150, max: 200 }
+    } else {
+      prompts = SURVEY_PROMPTS
+      timeLimit = 26 * 60 // 26 minutes
+      wordTarget = { min: 150, max: 200 }
+    }
+    
     const randomPrompt = prompts[Math.floor(Math.random() * prompts.length)]
     
     const newTask = {
-      type: taskType as 'email' | 'survey',
+      type: randomType,
       prompt: randomPrompt,
-      timeLimit: taskType === 'email' ? 27 : 26,
-      wordTarget: { min: 150, max: 200 }
+      timeLimit,
+      wordTarget
     }
     
-    console.log('Generated new task:', newTask)
     return newTask
   }
 
-  // Check if user has used their free attempt
+  // Check if user has used their free attempt and redirect if needed
   useEffect(() => {
-    const freeAttemptUsed = localStorage.getItem('celpip-free-attempt-used')
-    if (freeAttemptUsed === 'true') {
-      setHasUsedFreeAttempt(true)
+    if (!loading && hasUsedFreeTest) {
+      toast.error('You have already used your free test. Please upgrade to continue.')
+      router.push('/pay')
     }
-  }, [])
+  }, [loading, hasUsedFreeTest, router])
 
-  // Randomly select a task on component mount
+  // Generate initial task when component mounts
   useEffect(() => {
-    console.log('Task generation useEffect triggered, selectedTask:', selectedTask)
-    if (!selectedTask) {
-      console.log('Generating new task...')
-      const newTask = generateNewTask()
-      setSelectedTask(newTask)
+    if (!loading && !hasUsedFreeTest) {
+      setSelectedTask(generateNewTask())
     }
-  }, [selectedTask])
+  }, [loading, hasUsedFreeTest])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-celpip-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (hasUsedFreeTest) {
+    return null // Will redirect to /pay
+  }
+
+  if (!selectedTask) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-celpip-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Preparing your writing task...</p>
+        </div>
+      </div>
+    )
+  }
 
   const handleSubmit = async (data: {
     response: string
@@ -204,317 +234,92 @@ export default function PracticePage() {
     timeSpent: number
   }) => {
     try {
-      // Mark free attempt as used if user is not signed in
-      if (!session) {
-        localStorage.setItem('celpip-free-attempt-used', 'true')
-        setHasUsedFreeAttempt(true)
-      }
-
-      // First, get AI scoring
-      const scoringResponse = await fetch('/api/score', {
+      const response = await fetch('/api/score', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          taskType: selectedTask!.type,
-          prompt: selectedTask!.prompt.prompt,
+          prompt: selectedTask.prompt.prompt,
           response: data.response,
+          taskType: selectedTask.type,
           wordCount: data.wordCount,
+          timeSpent: data.timeSpent,
         }),
       })
 
-      if (!scoringResponse.ok) {
-        throw new Error('Failed to score response')
+      if (!response.ok) {
+        throw new Error('Failed to submit response')
       }
 
-      const scoringResult = await scoringResponse.json()
-
-      // Save attempt to database (optional for now)
-      try {
-        const saveResponse = await fetch('/api/attempts', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            taskType: selectedTask!.type,
-            prompt: selectedTask!.prompt.prompt,
-            response: data.response,
-            wordCount: data.wordCount,
-            timeSpent: data.timeSpent,
-            score: scoringResult,
-          }),
-        })
-
-        if (!saveResponse.ok) {
-          console.warn('Failed to save attempt to database')
-        }
-      } catch (error) {
-        console.warn('Could not save attempt:', error)
-      }
-
-      setResults({
-        ...scoringResult,
+      const result = await response.json()
+      
+      // Mark free test as used after successful submission
+      await markFreeTestAsUsed()
+      
+      // Store attempt data for feedback page
+      const attemptData = {
+        id: result.attemptId,
+        prompt: selectedTask.prompt.prompt,
         response: data.response,
+        score: result.score,
+        feedback: result.feedback,
+        taskType: selectedTask.type,
         wordCount: data.wordCount,
         timeSpent: data.timeSpent,
-      })
-      setShowResults(true)
-      
-      // Refresh stats on dashboard after successful submission
-      // This will update the stats when user returns to dashboard
-      setTimeout(() => {
-        refreshStats()
-      }, 1000)
+        submittedAt: new Date().toISOString()
+      }
+
+      // Store in localStorage for guest users or redirect to feedback page
+      if (!user) {
+        localStorage.setItem('celpip_last_attempt', JSON.stringify(attemptData))
+      }
+
+      // Refresh stats
+      refreshStats()
+
+      // Redirect to feedback page
+      router.push(`/feedback/${result.attemptId}`)
     } catch (error) {
-      console.error('Submission error:', error)
+      console.error('Error submitting response:', error)
       toast.error('Failed to submit response. Please try again.')
     }
   }
 
-  // Show sign-in prompt if user has used free attempt and is not signed in
-  if (hasUsedFreeAttempt && !session) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="text-center">
-            <div className="mx-auto w-16 h-16 bg-celpip-100 rounded-full flex items-center justify-center mb-6">
-              <Lock className="h-8 w-8 text-celpip-600" />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              Sign In to Continue Practicing
-            </h1>
-            <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-              You've used your free practice attempt. Sign in or create an account to continue practicing with unlimited attempts and track your progress.
-            </p>
-            <div className="space-y-4">
-              <Link
-                href="/auth/signin"
-                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-celpip-600 hover:bg-celpip-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-celpip-500 transition-colors"
-              >
-                Sign In / Sign Up
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-              <div className="text-sm text-gray-500">
-                <Link href="/" className="text-celpip-600 hover:text-celpip-700">
-                  ← Back to Dashboard
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+  const handleNewTask = () => {
+    if (hasUsedFreeTest) {
+      router.push('/pay')
+      return
+    }
+    setSelectedTask(generateNewTask())
   }
 
-  // Show results if available
-  if (showResults && results) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-            <div className={`px-6 py-4 ${selectedTask?.type === 'email' ? 'bg-celpip-600' : 'bg-green-600'} text-white`}>
-              <h1 className="text-2xl font-bold">Your Results</h1>
-              <p className="text-opacity-80">
-                {selectedTask?.type === 'email' ? 'Email Writing Task' : 'Survey Response Task'}
-              </p>
-            </div>
-
-            <div className="p-6">
-              {/* Score Overview */}
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Score Overview</h2>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-bold text-celpip-600">{results.overall || 'N/A'}</div>
-                    <div className="text-sm text-gray-600">Overall</div>
-                  </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">{results.grammar || 'N/A'}</div>
-                    <div className="text-sm text-gray-600">Grammar</div>
-                  </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">{results.vocabulary || 'N/A'}</div>
-                    <div className="text-sm text-gray-600">Vocabulary</div>
-                  </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">{results.coherence || 'N/A'}</div>
-                    <div className="text-sm text-gray-600">Coherence</div>
-                  </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-bold text-orange-600">{results.taskRelevance || 'N/A'}</div>
-                    <div className="text-sm text-gray-600">Task Relevance</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Statistics */}
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Statistics</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <div className="text-lg font-semibold text-gray-900">{results.wordCount}</div>
-                    <div className="text-sm text-gray-600">Words Written</div>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <div className="text-lg font-semibold text-gray-900">
-                      {Math.floor(results.timeSpent / 60)}:{(results.timeSpent % 60).toString().padStart(2, '0')}
-                    </div>
-                    <div className="text-sm text-gray-600">Time Spent</div>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <div className="text-lg font-semibold text-gray-900">
-                      {Math.round((results.wordCount / results.timeSpent) * 60)} wpm
-                    </div>
-                    <div className="text-sm text-gray-600">Writing Speed</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Feedback */}
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Detailed Feedback</h2>
-                <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-                  <div className="text-sm text-blue-800 whitespace-pre-wrap">
-                    {results.feedback || 'No detailed feedback available.'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Improvement Tips */}
-              {results.improvementTips && results.improvementTips.length > 0 && (
-                <div className="mb-8">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Improvement Tips</h2>
-                  <ul className="space-y-2">
-                    {results.improvementTips.map((tip: string, index: number) => (
-                      <li key={index} className="flex items-start">
-                        <div className="w-2 h-2 bg-celpip-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                        <span className="text-gray-700">{tip}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Your Response */}
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Response</h2>
-                <div className="bg-gray-50 border rounded-lg p-4">
-                  <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                    {results.response}
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4">
-                <button
-                  onClick={() => {
-                    console.log('Try Another Task clicked')
-                    console.log('Session:', session)
-                    console.log('Has used free attempt:', hasUsedFreeAttempt)
-                    
-                    // Check if user is signed in or hasn't used free attempt
-                    if (session || !hasUsedFreeAttempt) {
-                      console.log('Resetting state for new task')
-                      setShowResults(false)
-                      setResults(null)
-                      // Generate a new task immediately instead of setting to null
-                      const newTask = generateNewTask()
-                      setSelectedTask(newTask)
-                    } else {
-                      console.log('Showing sign-in modal')
-                      setShowSignInModal(true)
-                    }
-                  }}
-                  className="flex-1 px-6 py-3 bg-celpip-600 text-white rounded-md hover:bg-celpip-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-celpip-500 transition-colors"
-                >
-                  Try Another Task
-                </button>
-                <button
-                  onClick={() => router.push('/')}
-                  className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-celpip-500 transition-colors"
-                >
-                  Back to Dashboard
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Sign-in Modal
-  if (showSignInModal) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center mb-4">
-              <div className="w-10 h-10 bg-celpip-100 rounded-full flex items-center justify-center mr-3">
-                <Lock className="h-6 w-6 text-celpip-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900">Sign In Required</h3>
-            </div>
-            
-            <p className="text-gray-600 mb-6">
-              Please sign in or create an account to try another task. You've used your free practice attempt.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={() => setShowSignInModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-celpip-500 transition-colors"
-              >
-                Cancel
-              </button>
-              <Link
-                href="/auth/signin"
-                className="flex-1 px-4 py-2 bg-celpip-600 text-white rounded-md hover:bg-celpip-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-celpip-500 transition-colors text-center"
-              >
-                Sign In / Sign Up
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Show writing interface if task is selected
-  if (selectedTask) {
-    return (
-      <WritingInterface
-        taskType={selectedTask.type}
-        prompt={selectedTask.prompt.prompt}
-        timeLimit={selectedTask.timeLimit}
-        wordTarget={selectedTask.wordTarget}
-        onSubmit={handleSubmit}
-        onTryAnotherTask={() => {
-          console.log('onTryAnotherTask called from practice page')
-          const newTask = generateNewTask()
-          setSelectedTask(newTask)
-        }}
-        isSignedIn={!!session}
-        hasUsedFreeAttempt={hasUsedFreeAttempt}
-      />
-    )
-  }
-
-  // Show loading state
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-celpip-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Preparing your writing task...</p>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            {selectedTask.type === 'email' ? 'Email Writing Task' : 'Survey Response Task'}
+          </h1>
+          <p className="text-lg text-gray-600 mb-6">
+            {selectedTask.type === 'email' 
+              ? 'Write a formal or informal email in response to the given situation.'
+              : 'Respond to the survey questions with detailed answers.'
+            }
+          </p>
         </div>
+
+        <WritingInterface
+          prompt={selectedTask.prompt.prompt}
+          timeLimit={selectedTask.timeLimit}
+          wordTarget={selectedTask.wordTarget}
+          onSubmit={handleSubmit}
+          onTryAnotherTask={handleNewTask}
+          taskType={selectedTask.type}
+          isSignedIn={!!user}
+          hasUsedFreeAttempt={hasUsedFreeTest}
+        />
       </div>
     </div>
   )

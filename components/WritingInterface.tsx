@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation'
 interface WritingInterfaceProps {
   taskType: 'email' | 'survey'
   prompt: string
-  timeLimit: number // in minutes
+  timeLimit: number // in seconds
   wordTarget: { min: number; max: number }
   onSubmit: (data: {
     response: string
@@ -32,7 +32,7 @@ export default function WritingInterface({
   hasUsedFreeAttempt = false,
 }: WritingInterfaceProps) {
   const [response, setResponse] = useState('')
-  const [timeRemaining, setTimeRemaining] = useState(timeLimit * 60) // Convert to seconds
+  const [timeRemaining, setTimeRemaining] = useState(timeLimit) // timeLimit is already in seconds
   const [isTimerRunning, setIsTimerRunning] = useState(false)
   const [startTime, setStartTime] = useState<number | null>(null)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
@@ -135,34 +135,28 @@ export default function WritingInterface({
 
   const handleSubmit = async () => {
     if (!response.trim()) {
-      toast.error('Please write something before submitting')
+      toast.error('Please write your response before submitting.')
       return
     }
 
-    if (wordCount < wordTarget.min) {
-      toast.error(`Please write at least ${wordTarget.min} words`)
+    if (wordCount < wordTarget.min || wordCount > wordTarget.max) {
+      toast.error(`Your response should be between ${wordTarget.min} and ${wordTarget.max} words.`)
       return
     }
 
     setIsSubmitting(true)
-    setIsTimerRunning(false)
-    setTestInProgress(false) // Test completed, remove navigation protection
-
-    const timeSpent = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0
 
     try {
       await onSubmit({
         response: response.trim(),
         wordCount,
-        timeSpent,
+        timeSpent: startTime ? Math.floor((Date.now() - startTime) / 1000) : 0
       })
-
-      // Clear saved draft after successful submission
-      localStorage.removeItem(`celpip-draft-${taskType}`)
     } catch (error) {
-      toast.error('Failed to submit. Please try again.')
+      console.error('Submission error:', error)
+      toast.error('Failed to submit response. Please try again.')
+    } finally {
       setIsSubmitting(false)
-      setTestInProgress(true) // Restore navigation protection if submission fails
     }
   }
 
@@ -206,6 +200,22 @@ export default function WritingInterface({
     if (timeRemaining <= 300) return 'text-red-600 timer-warning' // 5 minutes or less
     if (timeRemaining <= 600) return 'text-orange-600' // 10 minutes or less
     return 'text-gray-600'
+  }
+
+  const handleTryAnotherTask = () => {
+    console.log('handleTryAnotherTask called')
+    console.log('isSignedIn:', isSignedIn)
+    console.log('hasUsedFreeAttempt:', hasUsedFreeAttempt)
+    
+    if (isSignedIn || !hasUsedFreeAttempt) {
+      console.log('Calling onTryAnotherTask')
+      if (onTryAnotherTask) {
+        onTryAnotherTask()
+      }
+    } else {
+      console.log('Redirecting to pay page')
+      router.push('/pay')
+    }
   }
 
   return (
@@ -265,9 +275,9 @@ export default function WritingInterface({
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 lg:gap-12">
           {/* Left Side - Prompt */}
-          <div className="bg-white rounded-lg shadow p-6 lg:p-8">
+          <div className="bg-white rounded-lg shadow-lg p-6 lg:p-8">
             <h2 className="text-xl lg:text-2xl font-semibold text-gray-900 mb-6">
               {taskType === 'email' ? 'Email Writing Task' : 'Survey Response Task'}
             </h2>
@@ -284,7 +294,11 @@ export default function WritingInterface({
                 <div className="text-sm lg:text-base text-gray-600 space-y-2">
                   <div className="flex items-center">
                     <div className="w-2 h-2 bg-celpip-500 rounded-full mr-3"></div>
-                    Time limit: {timeLimit} minutes
+                    Time limit: {Math.floor(timeLimit / 60)} minutes
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-celpip-500 rounded-full mr-3"></div>
+                    Write {wordTarget.min}–{wordTarget.max} words
                   </div>
                   <div className="flex items-center">
                     <div className="w-2 h-2 bg-celpip-500 rounded-full mr-3"></div>
@@ -303,8 +317,8 @@ export default function WritingInterface({
           </div>
 
           {/* Right Side - Editor */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6 lg:p-8">
+          <div className="bg-white rounded-lg shadow-lg flex flex-col">
+            <div className="p-6 lg:p-8 flex-1 flex flex-col">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg lg:text-xl font-medium text-gray-900">Your Response</h3>
                 <div className="flex items-center space-x-2">
@@ -322,71 +336,49 @@ export default function WritingInterface({
                 </div>
               </div>
 
-              <textarea
-                ref={textareaRef}
-                value={response}
-                onChange={handleTextChange}
-                placeholder="Start writing your response here..."
-                className="w-full h-96 lg:h-[500px] xl:h-[600px] p-4 lg:p-6 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-celpip-500 focus:border-transparent editor-container text-gray-900 bg-white text-sm lg:text-base leading-relaxed"
-                disabled={isSubmitting}
-              />
+              <div className="flex-1 flex flex-col">
+                <textarea
+                  ref={textareaRef}
+                  value={response}
+                  onChange={handleTextChange}
+                  placeholder="Start writing your response here..."
+                  className="flex-1 w-full min-h-[500px] lg:min-h-[600px] xl:min-h-[700px] p-4 lg:p-6 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-celpip-500 focus:border-transparent editor-container text-gray-900 bg-white text-sm lg:text-base leading-relaxed"
+                  disabled={isSubmitting}
+                />
 
-              {/* Divider */}
-              <div className="mt-6 border-t border-gray-200"></div>
+                {/* Word Count Status */}
+                <div className="mt-4 text-center">
+                  <div className="text-sm">
+                    {wordCount < wordTarget.min && (
+                      <span className="text-red-600 font-medium">
+                        Write at least {wordTarget.min - wordCount} more words
+                      </span>
+                    )}
+                    {wordCount >= wordTarget.min && wordCount <= wordTarget.max && (
+                      <span className="text-green-600 font-medium">
+                        Good length! ({wordCount} words)
+                      </span>
+                    )}
+                    {wordCount > wordTarget.max && (
+                      <span className="text-orange-600 font-medium">
+                        Consider shortening your response ({wordCount} words)
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
 
-              {/* Word Count Guidance */}
-              <div className="mt-4 text-center">
-                <p className="text-sm text-gray-600 italic bg-gray-50 px-3 py-2 rounded-md inline-block">
+              {/* Instructions before buttons */}
+              <div className="mt-6 text-center">
+                <p className="text-sm text-gray-600 font-medium">
                   Write {wordTarget.min}–{wordTarget.max} words
                 </p>
               </div>
 
-              {/* Word Count Status */}
-              <div className="mt-2 text-center">
-                <div className="text-sm">
-                  {wordCount < wordTarget.min && (
-                    <span className="text-red-600 font-medium">
-                      Write at least {wordTarget.min - wordCount} more words
-                    </span>
-                  )}
-                  {wordCount >= wordTarget.min && wordCount <= wordTarget.max && (
-                    <span className="text-green-600 font-medium">
-                      Good length! ({wordCount} words)
-                    </span>
-                  )}
-                  {wordCount > wordTarget.max && (
-                    <span className="text-orange-600 font-medium">
-                      Consider shortening your response ({wordCount} words)
-                    </span>
-                  )}
-                </div>
-              </div>
-
               {/* Control Buttons */}
-              <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+              <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-center">
                 <button
-                  onClick={() => {
-                    console.log('Try Another Task clicked from WritingInterface')
-                    console.log('isSignedIn:', isSignedIn)
-                    console.log('hasUsedFreeAttempt:', hasUsedFreeAttempt)
-                    
-                    // Check if user is signed in or hasn't used free attempt
-                    if (isSignedIn || !hasUsedFreeAttempt) {
-                      console.log('Generating new task from WritingInterface')
-                      if (onTryAnotherTask) {
-                        onTryAnotherTask()
-                      } else {
-                        // Fallback: navigate to practice page
-                        if (handleLinkClick('/practice')) {
-                          router.push('/practice')
-                        }
-                      }
-                    } else {
-                      console.log('Showing sign-in modal from WritingInterface')
-                      // Navigate to sign-in page
-                      router.push('/auth/signin')
-                    }
-                  }}
+                  onClick={handleTryAnotherTask}
                   className="flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-celpip-500 transition-colors text-sm font-medium w-full sm:w-auto"
                 >
                   Try Another Task

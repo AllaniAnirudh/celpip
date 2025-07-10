@@ -1,14 +1,32 @@
-'use client'
+"use client"
 
-import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabaseClient'
 import { User, LogOut, Home, FileText, LogIn, BookOpen, Mic } from 'lucide-react'
 
 export default function Navigation() {
-  const { data: session } = useSession()
+  const [user, setUser] = useState<any>(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user)
+    })
+    // Listen for auth changes
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+    return () => {
+      listener?.subscription.unsubscribe()
+    }
+  }, [])
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/' })
+    await supabase.auth.signOut()
+    setUser(null)
+    router.push('/')
   }
 
   return (
@@ -50,13 +68,12 @@ export default function Navigation() {
               Speaking Tips
             </Link>
 
-            {session ? (
+            {user ? (
               <div className="flex items-center space-x-3">
                 <div className="flex items-center text-sm text-gray-700">
                   <User className="h-4 w-4 mr-1" />
-                  {session.user?.name}
+                  {user.email}
                 </div>
-                
                 <button
                   onClick={handleSignOut}
                   className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
@@ -67,11 +84,11 @@ export default function Navigation() {
               </div>
             ) : (
               <Link
-                href="/auth/signin"
-                className="flex items-center px-4 py-2 text-sm font-medium text-white bg-celpip-600 hover:bg-celpip-700 rounded-md transition-colors"
+                href="/auth"
+                className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
               >
                 <LogIn className="h-4 w-4 mr-1" />
-                Sign In / Sign Up
+                Sign In
               </Link>
             )}
           </div>
