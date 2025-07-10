@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 // import OpenAI from 'openai'
 import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 // const openai = new OpenAI({
 //   apiKey: process.env.OPENAI_API_KEY,
@@ -31,7 +32,7 @@ Word Count: {wordCount}
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
     
     if (!session) {
       return NextResponse.json(
