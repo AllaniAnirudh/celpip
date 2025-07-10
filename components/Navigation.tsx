@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
-import { User, LogOut, Home, FileText, LogIn, BookOpen } from 'lucide-react'
+import { User, LogOut, Home, FileText, LogIn, BookOpen, Mic } from 'lucide-react'
 
 export default function Navigation() {
   const { data: session } = useSession()
@@ -40,6 +40,14 @@ export default function Navigation() {
             >
               <BookOpen className="h-4 w-4 mr-1" />
               Writing Tips
+            </Link>
+
+            <Link
+              href="/tips/speaking"
+              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+            >
+              <Mic className="h-4 w-4 mr-1" />
+              Speaking Tips
             </Link>
 
             {session ? (

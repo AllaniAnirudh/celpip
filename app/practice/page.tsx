@@ -158,6 +158,7 @@ export default function PracticePage() {
   const [showResults, setShowResults] = useState(false)
   const [results, setResults] = useState<any>(null)
   const [hasUsedFreeAttempt, setHasUsedFreeAttempt] = useState(false)
+  const [showSignInModal, setShowSignInModal] = useState(false)
 
   // Check if user has used their free attempt
   useEffect(() => {
@@ -392,9 +393,14 @@ export default function PracticePage() {
               <div className="flex flex-col sm:flex-row gap-4">
                 <button
                   onClick={() => {
-                    setShowResults(false)
-                    setResults(null)
-                    setSelectedTask(null) // Reset to get a new random task
+                    // Check if user is signed in or hasn't used free attempt
+                    if (session || !hasUsedFreeAttempt) {
+                      setShowResults(false)
+                      setResults(null)
+                      setSelectedTask(null) // Reset to get a new random task
+                    } else {
+                      setShowSignInModal(true)
+                    }
                   }}
                   className="flex-1 px-6 py-3 bg-celpip-600 text-white rounded-md hover:bg-celpip-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-celpip-500 transition-colors"
                 >
@@ -407,6 +413,44 @@ export default function PracticePage() {
                   Back to Dashboard
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Sign-in Modal
+  if (showSignInModal) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center mb-4">
+              <div className="w-10 h-10 bg-celpip-100 rounded-full flex items-center justify-center mr-3">
+                <Lock className="h-6 w-6 text-celpip-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Sign In Required</h3>
+            </div>
+            
+            <p className="text-gray-600 mb-6">
+              Please sign in or create an account to try another task. You've used your free practice attempt.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => setShowSignInModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-celpip-500 transition-colors"
+              >
+                Cancel
+              </button>
+              <Link
+                href="/auth/signin"
+                className="flex-1 px-4 py-2 bg-celpip-600 text-white rounded-md hover:bg-celpip-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-celpip-500 transition-colors text-center"
+              >
+                Sign In / Sign Up
+              </Link>
             </div>
           </div>
         </div>
